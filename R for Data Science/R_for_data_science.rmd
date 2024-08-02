@@ -1,0 +1,199 @@
+---
+title: "R for Data science"
+author: "Abishek"
+date: "2024-06-08"
+output: 
+  html_document:
+    theme: united
+    highlight: tango
+    toc: true
+    toc_depth: 2
+    toc_float: true
+---
+
+## Question 1
+
+1.1 Filter the data to include only rows where Year is 1962 and then make a scatter plot comparing 'CO2 emissions (metric tons per capita)' and gdpPercap for the filtered data.
+
+```{r setup, include=FALSE}
+library(readr)
+library(tidyverse)
+library(plotly)
+my_data <- read_csv("gapminder_clean.csv")
+```
+
+``` {r Question 1.1}
+# Question 1
+year_1962 <- filter(my_data, Year == 1962)
+clean_1962 <- drop_na(year_1962, `CO2 emissions (metric tons per capita)` | gdpPercap)
+
+# 1.1
+cor_plot <- ggplot(clean_1962, aes(x = `CO2 emissions (metric tons per capita)`, y = gdpPercap)) +
+  geom_point() +
+  ggtitle("GDP vs CO2 emissions in 1962")
+plot(cor_plot)
+```
+
+
+
+1.2 Calculate the correlation of 'CO2 emissions (metric tons per capita)' and gdpPercap. What is the correlation and associated p value?
+
+```{r Q 1.2}
+# 1.2
+corr_gdp_co2 <- cor(clean_1962$`CO2 emissions (metric tons per capita)`, clean_1962$gdpPercap)
+Corr_info <- cor.test(clean_1962$`CO2 emissions (metric tons per capita)`, clean_1962$gdpPercap)
+p_value <- Corr_info$p.value
+print(paste("Correlation between CO2 emission & gdpPercap in 1962 is", corr_gdp_co2, "p-value:", p_value))
+```
+
+
+
+1.3 In what year is the correlation between 'CO2 emissions (metric tons per capita)' and gdpPercap the strongest?
+
+```{r Q 1.3}
+# 1.3
+Strong_year_df <- data.frame(years = my_data$Year, co2_emission = my_data$`CO2 emissions (metric tons per capita)`, gdp = my_data$gdpPercap)
+cleaned_strong_year <- drop_na(Strong_year_df)
+correlation_results <- cleaned_strong_year %>%
+  group_by(years) %>%
+  summarize(correlation = cor(co2_emission, gdp, use = "complete.obs"))
+strongest_correlation_year <- correlation_results %>%
+  filter(correlation == max(correlation)) %>%
+  select(years, correlation)
+print(paste("The year with strongest correlation between CO2 emission & gdpPercap is", strongest_correlation_year[1]))
+```
+
+
+
+1.4 Create an interactive scatter plot comparing 'CO2 emissions (metric tons per capita)' and gdpPercap, where the point size is determined by pop (population) and the color is determined by the continent. 
+
+```{r Q 1.4}
+# 1.4
+year_1967 <- filter(my_data, Year == 1967)
+clean_1967 <- drop_na(year_1967, `CO2 emissions (metric tons per capita)` | gdpPercap)
+cor_plot_1967 <- ggplot(clean_1967, aes(x = `CO2 emissions (metric tons per capita)`, y = gdpPercap, color = continent, size = pop)) +
+  geom_point() +
+  ggtitle("GDP vs CO2 emissions in 1967")
+interactive_plot <- ggplotly(cor_plot_1967)
+interactive_plot
+```
+
+
+## Question 2
+
+What is the relationship between continent and 'Energy use (kg of oil equivalent per capita)'?
+
+```{r Question 2}
+data_continent_energy <- data.frame(Continent = my_data$continent, Energy = my_data$`Energy use (kg of oil equivalent per capita)`)
+clean_continent_energy <- na.omit(data_continent_energy)
+# Perform anova test
+anova_model <- aov(Energy ~ Continent, data = clean_continent_energy)
+anova_summary <- summary(anova_model)
+# Extract the F-value and p-value
+f_value <- anova_summary[[1]]["Continent", "F value"]
+p_value <- anova_summary[[1]]["Continent", "Pr(>F)"]
+
+# Perform Tukey's Honest Significant Difference test
+tukey_result <- TukeyHSD(anova_model)
+
+# Create a box plot for Continent and Energy usage
+Q2_plot <- ggplot(clean_continent_energy, aes(x = Continent, y = Energy, fill = Continent)) +
+  geom_boxplot() +
+  ggtitle("Energy Usage by Continent") +
+  xlab("Continent") +
+  ylab("Energy Used")
+interactive_Q2_plot <- ggplotly(Q2_plot)
+interactive_Q2_plot
+
+cat("F-value:", f_value, "\n", "p-value:", p_value, "\n")
+print(tukey_result)
+```
+Relationship between Continents and their Energy usage:
+Significant differences in mean energy use were found between Africa and all other continents.
+Europe has significantly higher mean energy use compared to both Africa and the Americas.
+Oceania has significantly higher mean energy use compared to Africa, the Americas, and Asia.
+No significant difference was found between Asia and the Americas, or between Oceania and Europe.
+
+An ANOVA (Analysis of Variance) test is performed to determine if there are statistically significant differences in the mean values of a numerical variable (in this case, "energy used") across different categories of a categorical variable (in this case, "continents"), because ANOVA is specifically designed to compare the means of a numerical variable across multiple groups or categories.
+
+
+## Question 3:
+
+Is there a significant difference between Europe and Asia with respect to 'Imports of goods and services (% of GDP)' in the years after 1990?
+
+``` {r Question 3}
+EUR_ASIA_1990 <- filter(my_data, (continent == "Europe" | continent == "Asia") & Year > 1990)
+Cleaned_Eur_asia_by_import <- drop_na(EUR_ASIA_1990, `Imports of goods and services (% of GDP)`)
+df_eur_asia <- data.frame(Continent = Cleaned_Eur_asia_by_import$continent, Import_percentage = Cleaned_Eur_asia_by_import$`Imports of goods and services (% of GDP)`)
+
+# Perform the t-test
+t_test_result <- t.test(Import_percentage ~ Continent, data = df_eur_asia)
+
+# Create a box plot for Continent and import %
+Q3_plot <- ggplot(df_eur_asia, aes(x = Continent, y = Import_percentage, fill = Continent)) +
+  geom_boxplot() +
+  ggtitle("Box Plot of Import Percentage by Continent") +
+  xlab("Continent") +
+  ylab("Import Percentage")
+interactive_Q3_plot <- ggplotly(Q3_plot)
+interactive_Q3_plot
+
+print(t_test_result)
+```
+Since the p value is 0.17 (which is greater than 0.05), There is no statistically significant difference between the import percentages of Asia and Europe.
+
+T test is performed to  determine if there is a significant difference between Europe and Asia with respect to import percentage, because this statistical test compares the means of two independent groups (in this case, Europe and Asia) to see if they are statistically significantly different from each other.
+
+
+## Question 4
+
+What is the country (or countries) that has the highest 'Population density (people per sq. km of land area)' across all years?
+
+``` {r Question 4}
+Population_country_data <- select(my_data, `Country Name`, `Population density (people per sq. km of land area)`)
+Clean_pop_con <- drop_na(Population_country_data)
+Grouped_data <- group_by(Clean_pop_con, `Country Name`)
+average_density <- summarise(Grouped_data, avg_density = mean(`Population density (people per sq. km of land area)`))
+max_density_country <- filter(average_density, avg_density == max(avg_density))
+
+# Plotting
+sorted_data <- average_density %>% arrange(desc(avg_density))
+top_countries <- head(sorted_data, n = 10)
+Q4_plot <- ggplot(top_countries, aes(x = reorder(`Country Name`, avg_density), y = avg_density)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  ggtitle("Top 10 Countries with the Max average pop density") +
+  xlab("Country") +
+  ylab("Average Population density") +
+  coord_flip()
+interactive_Q4_plot <- ggplotly(Q4_plot)
+interactive_Q4_plot
+
+paste("The country with max average population density is ", max_density_country[1])
+```
+
+## Question 5
+
+What country (or countries) has shown the greatest increase in 'Life expectancy at birth, total (years)' between 1962 and 2007?
+
+``` {r Question 5}
+Year_range_data <- filter(my_data, Year >= 1962 & Year <= 2007)
+Life_country_data <- select(Year_range_data, `Country Name`, `Life expectancy at birth, total (years)`)
+Cleaned_Lif_con <- drop_na(Life_country_data)
+Grouped_li_con <- group_by(Cleaned_Lif_con, `Country Name`)
+Increased_life_expectancy <- summarise(Grouped_li_con, increase = max(`Life expectancy at birth, total (years)`) - min(`Life expectancy at birth, total (years)`))
+greatest_increase <- filter(Increased_life_expectancy, increase == max(increase))
+
+# Plotting
+sorted_data <- Increased_life_expectancy %>% arrange(desc(increase))
+top_countries <- head(sorted_data, n = 10)
+Q5_plot <- ggplot(top_countries, aes(x = reorder(`Country Name`, increase), y = increase)) +
+  geom_bar(stat = "identity", fill = "purple") +
+  ggtitle("Top 10 Countries with the Greatest Increase in Life Expectancy") +
+  xlab("Country") +
+  ylab("Increase in Life Expectancy (years)") +
+  coord_flip()
+interactive_Q5_plot <- ggplotly(Q5_plot)
+interactive_Q5_plot
+
+paste("The Country with greatest increase in Life expectancy is", greatest_increase[1])
+```
